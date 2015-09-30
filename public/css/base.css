@@ -1,0 +1,140 @@
+* {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+body {
+  background: #fff;
+  font-family: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.35em;
+  margin: 0;
+  padding: 6px;
+  background-color: #F1F1F1;
+  color: #525252;
+}
+
+a {
+  color: #4183c4;
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+code {
+  background-color: #f8f8f8;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-family: "Bitstream Vera Sans Mono", Consolas, Courier, monospace;
+  font-size: 12px;
+  margin: 0 2px;
+  padding: 0px 5px;
+}
+
+h1, h2, h3, h4 {
+  font-weight: bold;
+  margin: 0 0 15px;
+  padding: 0;
+}
+
+h1 {
+  border-bottom: 1px solid #ddd;
+  font-size: 2.5em;
+  font-weight: bold;
+  margin: 0 0 15px;
+  padding: 0;
+}
+
+h2 {
+  border-bottom: 1px solid #eee;
+  font-size: 2em;
+}
+
+h3 {
+  font-size: 1.5em;
+}
+
+h4 {
+  font-size: 1.2em;
+}
+
+p, ul {
+  margin: 15px 0;
+}
+
+ul {
+  padding-left: 30px;
+}
+
+.page {
+    max-width: 600px;
+    margin: 2rem auto;
+    background-color: white;
+    border: 1px solid #EAEAEA;
+    box-shadow: 0px 0px 20px #E4E4E4;
+    border-radius: 0.4rem;
+}
+
+.tweet {
+    padding: 1.5rem;
+    border-bottom: 1px solid #EAEAEA;
+    position: relative;
+}
+
+.tweet .timestamp {
+    color: #D6D6D6;
+    font-size: 0.7rem;
+    display: inline-block;
+    margin-left: 0.3rem;
+}
+
+.tweet p {
+    margin: 0.4rem 0 0 0;
+    padding: 0;
+    line-height: 1.3rem;
+    word-wrap: break-word; 
+}
+
+.tweet .author {
+    color: #000000;
+}
+
+.tweet .profpic {
+    display: inline-block;
+    width: 11%;
+    vertical-align: top;
+}
+
+.tweet .content {
+    display: inline-block;
+    width: 87.8%;
+}
+
+.clearfix {
+    clear: both;
+}
+
+.tweet .avatar {
+    width: 92%;
+}
+
+
+@media only screen and (max-width: 700px) {
+    
+    body {
+      padding: 0;
+    }
+    
+    .page {
+      margin: 0;
+      padding: 0;
+      border: none;
+      box-shadow: none;
+      border-radius: 0;
+    }
+    
+
+}
