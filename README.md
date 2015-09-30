@@ -1,5 +1,5 @@
 # vespers
-A very personnal twitter client.
+A very personal twitter client.
 
 --
 
