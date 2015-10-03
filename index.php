@@ -67,9 +67,8 @@ function queryTwitterAPI ( $method, $path, $query = array() ) {
 
     // this time we're using a normal GET query, and we're only encoding the query params
     // (without the oauth params)
-    $url .= "?".http_build_query($query);
-    $url=str_replace("&amp;","&",$url); //Patch by @Frewuill
-    //var_dump($url);
+    $url .= "?".http_build_query($query);    
+    $url = str_replace("&amp;","&",$url); //Patch by @Frewuill
 
     $oauth['oauth_signature'] = $signature; // don't want to abandon all that work!
     ksort($oauth); // probably not necessary, but twitter's demo does it
@@ -89,15 +88,20 @@ function queryTwitterAPI ( $method, $path, $query = array() ) {
                       CURLOPT_RETURNTRANSFER => true,
                       CURLOPT_SSL_VERIFYPEER => false);
 
+
+    
     // do our business
     $feed = curl_init();
     curl_setopt_array($feed, $options);
     $json = curl_exec($feed);
     curl_close($feed);
+    //print_r($json);
+    //die();
+
 
     $data = json_decode($json);
-    // var_dump($data);
-    // die();
+    //var_dump($data);
+
 
     // Gestion si erreur
     // object(stdClass)#1 (1) { ["errors"]=> array(1) { [0]=> object(stdClass)#2 (2) { ["message"]=> string(19) "Rate limit exceeded" ["code"]=> int(88) } } }
@@ -144,8 +148,10 @@ function getListTweets ($max_id = null, $since_id = null) {
         );
     if ($max_id) { $query['max_id'] = $max_id; }
     if ($since_id) { $query['since_id'] = $since_id; }
+
     // Requête
     $decoded_json = queryTwitterAPI('GET', '/1.1/lists/statuses.json', $query);
+
     $nb_calls_API++;
     if ($nb_calls_API > 5) {
         die('Plus de 5 boucles sur getListTweets(). On a préféré s\'arrêter là.');
@@ -153,7 +159,7 @@ function getListTweets ($max_id = null, $since_id = null) {
 
     
     $last_tweet = end($decoded_json);
-    $last_tweet_id = intval($last_tweet->id_str);
+    $last_tweet_id = $last_tweet->id_str;
     $tweets = array_merge($tweets, $decoded_json);
 
     //echo '<br><br>Count : '.count($tweets).'<br><br>';
@@ -173,32 +179,43 @@ function getListTweets ($max_id = null, $since_id = null) {
 }
 
 
+// Taper dans le fichier json mis de côté (plutôt que dans l'API) si on en est dev/debug
+if ( isset($_GET['debug']) ) {
+  $json_url = 'twitter-api.json';
+  $json = file_get_contents($json_url);
+  $tweets = json_decode($json);
+  //var_dump($tweets);
+
+}
 // Vérification de la limite API
-if ( $checkAPI['remaining'] > 20 || isset($_GET['force_api']) ) {
+elseif ( $checkAPI['remaining'] > 20 || isset($_GET['force_api']) ) {
     getListTweets();
-    krsort($tweets); // remettre dans l'ordre chronologique
-    //echo $tweets_json;
-  }
+}
 else {
     $tweetout = 'Les limites de l\'API sont bientôt atteintes.<br>Ajouter le paramètre <code>?force_api</code> dans l\'URL pour y dire merde.';
 }
 
 
 
+// Remettre dans l'ordre chronologique
+krsort($tweets);
 
 
 
 
-function jc_twitter_format( $raw_text, $tweet = NULL ) {
+
+
+function jc_twitter_format ( $raw_text, $tweet = NULL ) {
     // first set output to the value we received when calling this function
     $output = $raw_text;
     // create xhtml safe text (mostly to be safe of ampersands)
     $output = htmlentities( html_entity_decode( $raw_text, ENT_NOQUOTES, 'UTF-8' ), ENT_NOQUOTES, 'UTF-8' );
+
     // parse urls
     if ( $tweet == NULL ) {
         // for regular strings, just create <a> tags for each url
         $pattern = '/([A-Za-z]+:\/\/[A-Za-z0-9-_]+\.[A-Za-z0-9-_:%&\?\/.=]+)/i';
-        $replacement = '<a href="${1}" rel="external">${1}</a>';
+        $replacement = 'YO<a href="${1}" rel="external">${1}</a>YO';
         $output = preg_replace( $pattern, $replacement, $output );
     } else {
         // for tweets, let's extract the urls from the entities object
@@ -206,36 +223,85 @@ function jc_twitter_format( $raw_text, $tweet = NULL ) {
             $old_url = $url->url;
             $expanded_url = ( empty( $url->expanded_url ) ) ? $url->url : $url->expanded_url;
             $display_url = ( empty( $url->display_url ) ) ? $url->url : $url->display_url;
+            /*
             //
                 $mailto_link = 'mailto:charles.guillocher.altima@axa.fr?subject='.rawurlencode($tweet->text).'&body='.rawurlencode("\"".$tweet->text."\"\r\n".$expanded_url);
             //
             $replacement = '<a href="' . $mailto_link . '" rel="external">' . $display_url . '</a>';
+            */
             //$replacement = '<a href="' . $expanded_url . '" rel="external">' . $display_url . '</a>';
+            $replacement = '<span class="link">' . $display_url . '</span>';
+            // Si c'est un quote, on supprime l'URL du tweet quoté
+            if ( strpos($url->expanded_url, 'twitter.com/') ) {
+                $replacement = '';
+            }
             $output = str_replace( $old_url, $replacement, $output );
         }
         // let's extract the hashtags from the entities object
         foreach ( $tweet->entities->hashtags as $hashtags ) {
             $hashtag = '#' . $hashtags->text;
-            $replacement = '<a href="http://twitter.com/search?q=%23' . $hashtags->text . '" rel="external">' . $hashtag . '</a>';
+            //$replacement = '<a href="http://twitter.com/search?q=%23' . $hashtags->text . '" rel="external">' . $hashtag . '</a>';
+            $replacement = '<span class="link">' . $hashtag . '</span>';
             $output = str_ireplace( $hashtag, $replacement, $output );
         }
         // let's extract the usernames from the entities object
         foreach ( $tweet->entities->user_mentions as $user_mentions ) {
             $username = '@' . $user_mentions->screen_name;
-            $replacement = '<a href="http://twitter.com/' . $user_mentions->screen_name . '" rel="external" title="' . $user_mentions->name . ' on Twitter">' . $username . '</a>';
+            //$replacement = '<a href="http://twitter.com/' . $user_mentions->screen_name . '" rel="external" title="' . $user_mentions->name . ' on Twitter">' . $username . '</a>';
+            $replacement = '<span class="link">' . $username . '</span>';
             $output = str_ireplace( $username, $replacement, $output );
         }
         // if we have media attached, let's extract those from the entities as well
         if ( isset( $tweet->entities->media ) ) {
             foreach ( $tweet->entities->media as $media ) {
-                $old_url = $media->url;
-                $replacement = '<a href="' . $media->expanded_url . '" rel="external" class="twitter-media" data-media="' . $media->media_url . '">' . $media->display_url . '</a>';
-                $output = str_replace( $old_url, $replacement, $output );
+                $output = str_replace( $media->url, '', $output );
             }
         }
     }
     return $output;
 }
+
+
+
+function jc_twitter_format_media ( $raw_text, $tweet = NULL ) {
+
+    $output_media = '';
+    
+    // if we have media attached, let's extract those from the entities as well
+    if ( isset( $tweet->entities->media ) ) {
+        foreach ( $tweet->entities->media as $media ) {
+            $output_media .= '<img src="'.$media->media_url.'" class="media">';
+        }
+    }
+    // if instagram !
+    foreach ( $tweet->entities->urls as $url ) {
+        if ( strpos($url->expanded_url, 'instagram.com') ) {
+          $output_media .= '<img src="'.$url->expanded_url.'media/?size=m" class="media">';
+        }
+    }
+
+    return $output_media;
+    
+}
+
+
+// Checker si le tweet contient du média
+function contains_media ($entities) {
+    // Native twitter media
+    if ( isset($entities->media) ) {
+        return true;
+    }
+    // Instagram media
+    elseif ( isset($entities->urls[0]) && strpos($entities->urls[0]->expanded_url, 'instagram.com') ) {
+        return true;
+    }
+    // No media
+    else {
+        return false;
+    }
+}
+
+
 
 $nb_tweets = 0;
 foreach ($tweets as &$tweet) {
@@ -243,19 +309,70 @@ foreach ($tweets as &$tweet) {
   $nb_tweets++;
   $date = new DateTime($tweet->created_at);
 
-  $tweetout .= '<div class="tweet">
-      <div class="profpic">
-        <img src="'.str_replace('normal', 'bigger', $tweet->user->profile_image_url).'" class="avatar">
-      </div>
-      <div class="content">
-          <div class="meta">
-              <a href="#" class="author">@'.$tweet->user->screen_name.'</a> <span class="timestamp">'.$date->format('d/m/Y H:i').'</span>
+
+  $expanded_url = '[aucun lien]';
+  if ( !empty($tweet->entities->urls[0]->expanded_url) ) {
+    $expanded_url = $tweet->entities->urls[0]->expanded_url;
+  }
+
+
+
+  
+  // Gérer les cas des Retweets / Quotes
+  $inner_tweet = '';
+  // Si c'est un retweet + quote
+  if ( isset($tweet->retweeted_status->quoted_status) ) {
+      $inner_tweet = $tweet->retweeted_status->quoted_status;
+      // --> faire un traitement graphique/html tout particulier pour les retweets
+  }
+  // Si c'est un simple quote
+  elseif ($tweet->is_quote_status) {
+      $inner_tweet = $tweet->quoted_status;
+  }
+
+
+  $tweetout .= '<a class="tweet" href="mailto:charles.guillocher.altima@axa.fr?subject='.rawurlencode($tweet->text).'&body='.rawurlencode('"'.$tweet->text."\"\r\n> ".$expanded_url."\r\n\r\n@".$tweet->user->screen_name.' : https://twitter.com/'.$tweet->user->screen_name.'/status/'.$tweet->id_str).'">
+      
+      <div class="wrap-meta">
+          <div class="profpic">
+              <img src="'.str_replace('normal', 'bigger', $tweet->user->profile_image_url).'" class="avatar">
           </div>
-          <div class="text"><p>'.jc_twitter_format($tweet->text, $tweet).'</p></div>
+          <div class="meta">
+              <span class="author">@'.$tweet->user->screen_name.'</span> <span class="timestamp">'.$date->format('d/m/Y H:i').'</span>
+          </div>
       </div>
+      <div class="wrap-text">
+          <p>'.jc_twitter_format($tweet->text, $tweet).'</p>
+
+          '.( !empty($inner_tweet) ? '
+            <div class="wrap-retweet">
+                <div class="wrap-meta">
+                    <div class="profpic">
+                        <img src="'.str_replace('normal', 'bigger', $inner_tweet->user->profile_image_url).'" class="avatar">
+                    </div>
+                    <div class="meta">
+                        <span class="author">@'.$inner_tweet->user->screen_name.'</span> <span class="timestamp">'.$date->format('d/m/Y H:i').'</span>
+                    </div>
+                </div>
+                <div class="wrap-text">
+                    <p>'.jc_twitter_format($inner_tweet->text, $inner_tweet).'</p>
+                </div>
+            </div>'
+              :
+            '' ).'
+
+      </div>
+      '.( contains_media($tweet->entities) ? '
+          <div class="wrap-media">
+              '.jc_twitter_format_media($tweet->text, $tweet).'
+          </div>'
+            :
+          '' ).'
       <div class="clearfix"></div>
-  </div>
+  </a>
   ';
+
+  //$tweetout .= '';
    
     /*
    foreach ($tweet->entities->urls as $url) {
@@ -296,7 +413,17 @@ foreach ($tweets as &$tweet) {
 <body>
 <div class="page">
   
-  <?php echo '<div class="tweet">'.$checkAPI['html'].'<br>Nb de tweets : '.$nb_tweets.' – Nb d\'appels API : '.$nb_calls_API.'</div>'. $tweetout; ?>
+  <?php echo '
+  
+    <div class="tweet">
+        <div class="wrap-text">
+            '.$checkAPI['html'].'<br>Nb de tweets : '.$nb_tweets.' – Nb d\'appels API : '.$nb_calls_API.'
+        </div>
+    </div>
+
+    '. $tweetout;
+
+  ?>
 
 </div>
 </body>
