@@ -15,9 +15,10 @@ body {
   color: #525252;
 }
 
-a {
-  color: #4183c4;
-  text-decoration: none;
+
+a, .link {
+    color: #4183C4;
+    text-decoration: none;
 }
 
 a:hover {
@@ -70,19 +71,38 @@ ul {
 }
 
 .page {
-    max-width: 600px;
-    margin: 2rem auto;
+    max-width: 602px;
     background-color: white;
-    border: 1px solid #EAEAEA;
-    box-shadow: 0px 0px 20px #E4E4E4;
+    box-shadow: #E4E4E4 0px 0px 20px;
+    margin: 2rem auto;
+    border-width: 1px;
+    border-style: solid;
+    border-color: #EAEAEA;
+    border-image: initial;
     border-radius: 0.4rem;
 }
 
+
 .tweet {
-    padding: 1.5rem;
-    border-bottom: 1px solid #EAEAEA;
     position: relative;
+    display: block;
+    padding: 1.5rem 0px;
+    border-bottom: 1px solid #E4E4E4;
 }
+
+a.tweet {
+    color: #525252;
+    text-decoration: none;
+}
+
+.tweet .wrap-meta, .tweet .wrap-text {
+    padding: 0px 1.5rem;
+}
+
+.tweet .wrap-retweet .wrap-meta, .tweet .wrap-retweet .wrap-text {
+    padding: 0px;
+}
+
 
 .tweet .timestamp {
     color: #D6D6D6;
@@ -96,6 +116,12 @@ ul {
     padding: 0;
     line-height: 1.3rem;
     word-wrap: break-word; 
+}
+
+.tweet .wrap-meta .meta {
+    width: 80%;
+    display: inline-block;
+    margin-top: 1em;
 }
 
 .tweet .author {
@@ -113,6 +139,23 @@ ul {
     width: 87.8%;
 }
 
+.tweet .wrap-media {
+    width: 117%;
+    box-shadow: #c1c1c1 0px 8px 22px;
+    margin: 0.6em -3.2em -1.5em;
+}
+
+.tweet .wrap-media img.media {
+    width: 100%;
+    display: block;
+}
+
+.tweet .wrap-retweet {
+    background-color: #e2ecff;
+    margin-top: 0.5em;
+    padding: 1em;
+}
+
 .clearfix {
     clear: both;
 }
@@ -121,6 +164,11 @@ ul {
     width: 92%;
 }
 
+.tweet .retweeting_user {
+    color: #B7B7B7;
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+}
 
 @media only screen and (max-width: 700px) {
     
@@ -136,5 +184,18 @@ ul {
       border-radius: 0;
     }
     
+    .tweet .wrap-meta .meta {
+        width: auto;
+        display: inline-block;
+        margin-top: 0.3em;
+    }
+
+    .tweet .wrap-media {
+        width: 100%;
+        margin-left: 0px;
+        margin-right: 0px;
+        margin-top: 0.8em;
+        box-shadow: #c1c1c1 0px -2px 22px;
+    }
 
 }

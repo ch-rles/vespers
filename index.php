@@ -95,12 +95,14 @@ function queryTwitterAPI ( $method, $path, $query = array() ) {
     curl_setopt_array($feed, $options);
     $json = curl_exec($feed);
     curl_close($feed);
-    //print_r($json);
+    //var_dump($json);
     //die();
 
 
     $data = json_decode($json);
     //var_dump($data);
+    //print_r($data);
+    //die();
 
 
     // Gestion si erreur
@@ -122,7 +124,7 @@ function checkAPIRateLimits ($decoded_json) {
     $date->setTimestamp($decoded_json->resources->lists->{'/lists/statuses'}->reset);
     return array(
             'remaining' => $decoded_json->resources->lists->{'/lists/statuses'}->remaining,
-            'html' => 'Nb appels restant pour "list/statuses" : '.$decoded_json->resources->lists->{'/lists/statuses'}->remaining.' (reset à '.$date->format('d/m/Y H:i').')'
+            'html' => 'Nb appels restant pour "lists/statuses" : '.$decoded_json->resources->lists->{'/lists/statuses'}->remaining.' (reset à '.$date->format('d/m/Y H:i').')'
         );
     // A faire : une boucle pour voir si un autre param est low limit
 }
@@ -144,7 +146,8 @@ function getListTweets ($max_id = null, $since_id = null) {
             'list_id' => 11961002,
             'slug' => 'irl-com',
             'include_rts' => 1,
-            'count' => 800
+            'count' => 800,
+            'tweet_mode' => 'extended'
         );
     if ($max_id) { $query['max_id'] = $max_id; }
     if ($since_id) { $query['since_id'] = $since_id; }
@@ -162,7 +165,7 @@ function getListTweets ($max_id = null, $since_id = null) {
     $last_tweet_id = $last_tweet->id_str;
     $tweets = array_merge($tweets, $decoded_json);
 
-    //echo '<br><br>Count : '.count($tweets).'<br><br>';
+    // echo '<br><br>Count : '.count($tweets).'<br><br>';
     // var_dump($tweets);
     // die();
 
@@ -183,9 +186,12 @@ function getListTweets ($max_id = null, $since_id = null) {
 if ( isset($_GET['debug']) ) {
   $json_url = 'twitter-api.json';
   $json = file_get_contents($json_url);
+  //var_dump($json);
+  //echo "\r\n\r\n----DECODE----\r\n\r\n";
   $tweets = json_decode($json);
+    // echo "\r\n".json_last_error_msg();
+    // echo "\r\n".json_last_error();
   //var_dump($tweets);
-
 }
 // Vérification de la limite API
 elseif ( $checkAPI['remaining'] > 20 || isset($_GET['force_api']) ) {
@@ -210,6 +216,8 @@ function jc_twitter_format ( $raw_text, $tweet = NULL ) {
     $output = $raw_text;
     // create xhtml safe text (mostly to be safe of ampersands)
     $output = htmlentities( html_entity_decode( $raw_text, ENT_NOQUOTES, 'UTF-8' ), ENT_NOQUOTES, 'UTF-8' );
+    // rajouter les sauts de ligne
+    $output = nl2br($output);
 
     // parse urls
     if ( $tweet == NULL ) {
@@ -225,7 +233,7 @@ function jc_twitter_format ( $raw_text, $tweet = NULL ) {
             $display_url = ( empty( $url->display_url ) ) ? $url->url : $url->display_url;
             /*
             //
-                $mailto_link = 'mailto:charles.guillocher.altima@axa.fr?subject='.rawurlencode($tweet->text).'&body='.rawurlencode("\"".$tweet->text."\"\r\n".$expanded_url);
+                $mailto_link = 'mailto:charles@lajavaness.com?subject='.rawurlencode($tweet->full_text).'&body='.rawurlencode("\"".$tweet->full_text."\"\r\n".$expanded_url);
             //
             $replacement = '<a href="' . $mailto_link . '" rel="external">' . $display_url . '</a>';
             */
@@ -320,8 +328,15 @@ foreach ($tweets as &$tweet) {
   
   // Gérer les cas des Retweets / Quotes
   $inner_tweet = '';
+  $original_user_screen_name = '';
+  // Si c'est un retweet
+  if ( isset($tweet->retweeted_status) ) {
+      // Garder le retweeter original avant d'écraser $tweet par $retweeted_status
+      $original_user_screen_name = $tweet->user->screen_name;
+      $tweet = $tweet->retweeted_status;
+  }
   // Si c'est un retweet + quote
-  if ( isset($tweet->retweeted_status->quoted_status) ) {
+  elseif ( isset($tweet->retweeted_status->quoted_status) ) {
       $inner_tweet = $tweet->retweeted_status->quoted_status;
       // --> faire un traitement graphique/html tout particulier pour les retweets
   }
@@ -331,9 +346,10 @@ foreach ($tweets as &$tweet) {
   }
 
 
-  $tweetout .= '<a class="tweet" href="mailto:charles.guillocher.altima@axa.fr?subject='.rawurlencode($tweet->text).'&body='.rawurlencode('"'.$tweet->text."\"\r\n> ".$expanded_url."\r\n\r\n@".$tweet->user->screen_name.' : https://twitter.com/'.$tweet->user->screen_name.'/status/'.$tweet->id_str).'">
+  $tweetout .= '<a class="tweet" href="mailto:charles@lajavaness.com?subject='.rawurlencode($tweet->full_text).'&body='.rawurlencode('"'.$tweet->full_text."\"\r\n> ".$expanded_url."\r\n\r\n@".$tweet->user->screen_name.' : https://twitter.com/'.$tweet->user->screen_name.'/status/'.$tweet->id_str).'">
       
       <div class="wrap-meta">
+         '.( !empty($original_user_screen_name) ? ' <div class="retweeting_user">@'.$original_user_screen_name.' retweeted</div>':'').'
           <div class="profpic">
               <img src="'.str_replace('normal', 'bigger', $tweet->user->profile_image_url).'" class="avatar">
           </div>
@@ -342,7 +358,7 @@ foreach ($tweets as &$tweet) {
           </div>
       </div>
       <div class="wrap-text">
-          <p>'.jc_twitter_format($tweet->text, $tweet).'</p>
+          <p>'.jc_twitter_format($tweet->full_text, $tweet).'</p>
 
           '.( !empty($inner_tweet) ? '
             <div class="wrap-retweet">
@@ -355,7 +371,7 @@ foreach ($tweets as &$tweet) {
                     </div>
                 </div>
                 <div class="wrap-text">
-                    <p>'.jc_twitter_format($inner_tweet->text, $inner_tweet).'</p>
+                    <p>'.jc_twitter_format($inner_tweet->full_text, $inner_tweet).'</p>
                 </div>
             </div>'
               :
@@ -364,7 +380,7 @@ foreach ($tweets as &$tweet) {
       </div>
       '.( contains_media($tweet->entities) ? '
           <div class="wrap-media">
-              '.jc_twitter_format_media($tweet->text, $tweet).'
+              '.jc_twitter_format_media($tweet->full_text, $tweet).'
           </div>'
             :
           '' ).'
@@ -378,16 +394,16 @@ foreach ($tweets as &$tweet) {
    foreach ($tweet->entities->urls as $url) {
       echo 'preg_replace("/"'.addslashes($url->url).'"/",
         \'<a href="'.addslashes($url->url).'" target="_blank">'.addslashes($url->display_url).'</a>,
-        '.addslashes($tweet->text);
+        '.addslashes($tweet->full_text);
 
-      $tweet->text = preg_replace("/".addslashes($url->url)."/",
+      $tweet->full_text = preg_replace("/".addslashes($url->url)."/",
         '<a href="'.addslashes($url->url).'" target="_blank">'.addslashes($url->display_url).'</a>',
-        $tweet->text
+        $tweet->full_text
       );
-      echo $tweet->text; die();
+      echo $tweet->full_text; die();
    }
-   $tweetout .= '@'.$tweet->user->screen_name.' ('.$tweet->created_at.') : '.$tweet->text;
-   //$tweetout .= preg_replace("/(http:\/\/|(www\.))(([^\s<]{4,68})[^\s<]*)/", '<a href="http://$2$3" target="_blank">$1$2$4</a>', $tweet->text);
+   $tweetout .= '@'.$tweet->user->screen_name.' ('.$tweet->created_at.') : '.$tweet->full_text;
+   //$tweetout .= preg_replace("/(http:\/\/|(www\.))(([^\s<]{4,68})[^\s<]*)/", '<a href="http://$2$3" target="_blank">$1$2$4</a>', $tweet->full_text);
    //$tweetout = preg_replace("/@(\w+)/", "<a href=\"http://www.twitter.com/\\1\" target=\"_blank\">@\\1</a>", $tweetout);
    //$tweetout = preg_replace("/#(\w+)/", "<a href=\"http://search.twitter.com/search?q=\\1\" target=\"_blank\">#\\1</a>", $tweetout);
    $tweetout .= '<br><br>';
